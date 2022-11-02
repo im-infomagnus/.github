@@ -1,0 +1,89 @@
+name: Creates import map JSON file and Uploads artifact
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Environment to use when running the job '
+        type: string
+        required: true
+      assets:
+        description: 'Assets names of libs and apps that will be on the Import map. As a JSON string.'
+        type: string
+        required: true
+      ref:
+        description: 'The branch, tag or SHA to checkout. this defaults to the reference or SHA for that event. Otherwise, uses the default branch.'
+        type: string
+        required: false
+        default: ${{ github.sha }}
+
+    outputs:
+      importMapFileName:
+        description: 'Import map file name'
+        value: ${{ jobs.createImportMapAndUploadArtifact.outputs.importMapFileName }}
+      importMap:
+        description: 'Import map json'
+        value: ${{ jobs.createImportMapAndUploadArtifact.outputs.importMap }}
+
+    secrets:
+      SINGLE_SPA_MODULE_URL:
+        required: true
+      REACT_MODULE_URL:
+        required: true
+      REACT_DOM_MODULE_URL:
+        required: true
+      REACT_IS_MODULE_URL:
+        required: true
+      STYLED_COMPONENTS_MODULE_URL:
+        required: true
+      PUBLISHED_URL:
+        required: true
+
+jobs:
+  createImportMapAndUploadArtifact:
+    name: Creates import map file and uploads Artifact
+    runs-on: ubuntu-latest
+
+    outputs:
+      importMapFileName: ${{ steps.createJSON.outputs.importMapFileName }}
+      importMap: ${{ steps.createJSON.outputs.importMap }}
+
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - id: createJSON
+        name: Creates JSON
+        uses: actions/github-script@v6.3.0
+        with:
+          script: |
+            const assets = ${{ inputs.assets }};
+            const dependencies = {
+              "single-spa": "${{ secrets.SINGLE_SPA_MODULE_URL }}",
+              react: "${{ secrets.REACT_MODULE_URL }}",
+              "react-dom": "${{ secrets.REACT_DOM_MODULE_URL }}",
+              "react-is": "${{ secrets.REACT_IS_MODULE_URL }}",
+              "styled-components": "${{ secrets.STYLED_COMPONENTS_MODULE_URL }}",     
+              "@yalo/root-config" : "${{ secrets.PUBLISHED_URL }}/yalo-root-config.js", 
+            }
+            const apps = assets.reduce(
+                (asset, current) => 
+                  (asset[`@yalo/${ current }`] = `${{ secrets.PUBLISHED_URL }}/${ current }/${{ inputs.ref }}/yalo-${ current }.js` 
+                  , asset)
+                , {})
+            const importMap = { imports : {
+              ...dependencies, ...apps       
+            }};
+            console.info("Import map generated: ", JSON.stringify(importMap));
+            core.setOutput('importMap', JSON.stringify(importMap));
+            core.setOutput('importMapFileName', 'import-map-${{ inputs.environment }}.json');
+      - name: create-json
+        uses: devops-actions/json-to-file@v1.0.0
+        with:
+          filename: ${{ steps.createJSON.outputs.importMapFileName }}
+          json: ${{ steps.createJSON.outputs.importMap }}
+
+      - name: Upload import map artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.createJSON.outputs.importMapFileName }}
+          path: ${{ steps.createJSON.outputs.importMapFileName }}

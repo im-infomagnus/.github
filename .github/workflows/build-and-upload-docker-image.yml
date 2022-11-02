@@ -1,0 +1,103 @@
+name: BuildAndUpload # check name
+
+on:
+  workflow_call:
+    inputs:
+      project_name:
+        description: "Project name for image prefix"
+        type: string
+        required: true
+      project_tag:
+        description: 'Project tag for image'
+        type: string
+        required: false
+        default: ""
+      artifact_key:
+        description: 'Key name for artifact uploaded in prior steps, by default we will look for "service" key'
+        type: string
+        required: false
+        default: "service"
+      artifact_location:
+        description: "Location where the artifact should be downloaded to, by default we will place it in build/"
+        type: string
+        required: false
+        default: "build/"
+      docker_context:
+        description: "Context for docker"
+        type: string
+        required: false
+        default: "."
+      docker_file:
+        description: "From where read the dockerfile"
+        type: string
+        required: false
+        default: "./Dockerfile"
+      skip_artifact:
+        description: "If set to true, it will skip the artifact download and proceed straight to the Docker build step"
+        type: boolean 
+        required: false
+        default: false
+
+    secrets:
+      username:
+        description: "docker hub user name"
+        required: true
+      password:
+        description: "docker hub user password"
+        required: true
+    outputs:
+      tag_name:
+        description: "result image name"
+        value: ${{ jobs.build.outputs.TAG_NAME }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      TAG_NAME: ${{ steps.getImageName.outputs.TAG_NAME }}
+    steps:
+      - uses: actions/checkout@v3 # external action, change to this branch
+      - name: Get image name
+        uses: actions/github-script@v6.3.0
+        id: getImageName
+        env:
+          TAG: ${{ inputs.project_tag }}
+        with:
+          script: |
+            let imageName = 'latest'
+            console.info(`event type:${process.env.GITHUB_REF_TYPE}`)
+            console.info(`ref:${process.env.GITHUB_REF}`)
+            console.info(`head ref:${process.env.GITHUB_HEAD_REF}`)
+            if (process.env.TAG) {
+              imageName = process.env.TAG
+            } else if (process.env.GITHUB_REF_TYPE === 'tag') {
+              imageName = process.env.GITHUB_REF.replace('refs/tags/','')
+            } else if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
+              imageName = process.env.GITHUB_HEAD_REF
+            }
+            const normalizedImageName = imageName.replace(/\//g,'-').toLowerCase()
+
+            console.info("Image Name: ", normalizedImageName)
+            core.setOutput('TAG_NAME', normalizedImageName)
+      - name: Download Built Code 
+        if: ${{ !inputs.skip_artifact }}
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{inputs.artifact_key}}
+          path: ${{inputs.artifact_location}}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Login to DockerHub
+        uses: docker/login-action@v2.0.0
+        with:
+          username: ${{secrets.username}}
+          password: ${{secrets.password}}
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: ${{inputs.docker_context}}
+          file: ${{inputs.docker_file}}
+          push: true
+          tags: yalochat/${{inputs.project_name}}:${{steps.getImageName.outputs.TAG_NAME}}

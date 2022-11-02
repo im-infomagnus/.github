@@ -1,0 +1,75 @@
+name: Get the assests list from Frontend monorepo
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: " The branch, tag or SHA to checkout. this defaults to the reference or SHA for that event. Otherwise, uses the default branch."
+        type: string
+        required: false
+        default: ${{ github.sha }}
+    outputs:
+      all_assets:
+        description: "All available assests"
+        value: ${{ toJSON(fromJSON(jobs.getMicroFrontendAssets.outputs.assets).allAssets) }}
+      apps_assets:
+        description: "All available assests under apps folder"
+        value: ${{ toJSON(fromJSON(jobs.getMicroFrontendAssets.outputs.assets).apps) }}
+      libs_assets:
+        description: "All available assests under libs folder"
+        value: ${{ toJSON(fromJSON(jobs.getMicroFrontendAssets.outputs.assets).libs) }}
+      hosts_assets:
+        description: "All available assests under hosts folder"
+        value: ${{ toJSON(fromJSON(jobs.getMicroFrontendAssets.outputs.assets).hosts) }}
+      apps_and_libs_assets:
+        description: "All available assests under apps and libs"
+        value: ${{ toJSON(fromJSON(jobs.getMicroFrontendAssets.outputs.assets).appsAndLibs) }}
+
+jobs:
+  getMicroFrontendAssets:
+    name: Get all the micro frontends assets list
+    runs-on: ubuntu-latest
+    outputs:
+      assets: ${{ steps.refineOutputs.outputs.assets }}
+
+    steps:
+      - id: "checkout"
+        name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.ref }}
+
+      - id: getApps
+        run: |
+          echo "::set-output name=APPS::$(ls -1 apps | tr "\n" " ")"
+
+      - id: getLibs
+        run: |
+          echo "::set-output name=LIBS::$(ls -1 libs | tr "\n" " ")"
+
+      - id: getHots
+        run: |
+          echo "::set-output name=HOSTS::$(ls -1 hosts | tr "\n" " ")"
+
+      - id: refineOutputs
+        uses: actions/github-script@v6.3.0
+        with:
+          script: |
+            const appsList = "${{ steps.getApps.outputs.APPS }}"
+            const libsList = "${{ steps.getLibs.outputs.LIBS }}"            
+            const hostsList = "${{ steps.getHots.outputs.HOSTS }}"    
+
+            const allAssets = [libsList.trim(),appsList.trim(),hostsList.trim()].join(' ').split(' ');            
+            const appsAndLibsAssets = [libsList.trim(),appsList.trim()].join(' ').split(' ');  
+
+            console.info('Assets', allAssets);
+
+            const assets = { 
+              apps: [appsList.trim()].join(' ').split(' '),
+              libs: [libsList.trim()].join(' ').split(' '),
+              hosts: [hostsList.trim()].join(' ').split(' '),
+              allAssets: allAssets,
+              appsAndLibs: appsAndLibsAssets,
+            }            
+
+            core.setOutput('assets', JSON.stringify(assets));

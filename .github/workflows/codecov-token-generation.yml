@@ -1,0 +1,55 @@
+name: Generate CODECOV_TOKEN secret for repository 
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository_name:
+        description: 'Repository name in GitHub. i.e `yalochat/workflow-tables`'
+        type: string
+        required: true
+
+jobs:
+  setTokenInRepository:
+    runs-on: 'ubuntu-latest'
+    steps:
+    - name: Create GitHub App Installation Token
+      id: get_workflow_token
+      uses: jnwng/github-app-installation-token-action@v2
+      with:
+        appId: ${{ secrets.MIGRATION_TOOL_FOR_CODECOV_APP_ID }}
+        installationId: ${{ secrets.MIGRATION_TOOL_FOR_CODECOV_INSTALLATION_ID }}
+        privateKey: ${{ secrets.MIGRATION_TOOL_FOR_CODECOV_PRIVATE_KEY }}
+
+    - name: Set Codecov settings URL
+      id: codecov_settings_url
+      run: |
+        echo "::set-output name=url::https://codecov.io/api/pub/gh/${{inputs.repository_name}}/settings"
+    - name: Activate repository at CodeCov
+      run: |
+       curl -H "Authorization: ${{secrets.CODECOV_ADMIN_TOKEN}}" -X POST ${{steps.codecov_settings_url.outputs.url}} -d 'action=activate' --fail
+       
+    - name: Fetching details from ${{inputs.repository_name}} over at CodeCov
+      id: codeCovUploadToken 
+      run: |
+        # We store the response from codecov repository settings in a variable to avoid complex one-liners. 
+        response=$(curl -H 'Authorization: ${{secrets.CODECOV_ADMIN_TOKEN}}' -X GET ${{steps.codecov_settings_url.outputs.url}} --fail)
+
+        # We extract the upload_token from the response and trim out the quotes that wrap the string
+        upload_token=$(echo $response | jq .repo.upload_token | tr -d '"')
+
+        # We set the upload_token in a job step output
+        echo "::set-output name=token::$upload_token"
+
+
+    - name: Placing CODECOV_TOKEN in ${{inputs.repository_name}}
+      if: ${{steps.codeCovUploadToken.outputs.token}} != ""
+      env:
+        GH_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
+      run: |
+        # We store the value upload_token into a file given that the gh cli requirements
+        echo ${{steps.codeCovUploadToken.outputs.token}} > CODECOV_TOKEN.txt
+
+        gh secret set CODECOV_TOKEN --repo ${{inputs.repository_name}}  < CODECOV_TOKEN.txt 
+      
+           
+        

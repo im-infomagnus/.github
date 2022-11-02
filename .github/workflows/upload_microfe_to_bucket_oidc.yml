@@ -1,0 +1,50 @@
+name: UploadMicroFEToBucket OIDC
+
+on:
+  workflow_call:
+    inputs:
+      artifact_key:
+        description: "Key name for artifact uploaded in prior steps"
+        type: string
+        required: true
+      path_to_upload_artifact:
+        description: "Path where the artifact will be uploaded on the bucket"
+        type: string
+        required: true
+      environment:
+        description: "Environment name to be used to select the correct variables on the jobs"
+        type: string
+        required: false
+        default: staging
+
+    secrets:
+      GOOGLE_BUCKET:
+        description: "Google bucket name"
+        required: true
+
+jobs:
+  upload-to-bucket:
+    name: Upload dist to Bucket
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    environment: ${{inputs.environment}}
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{inputs.artifact_key}}
+          path: ${{inputs.artifact_key}}
+      - id: auth
+        uses: yalochat/gcp-auth-action@main
+      - id: "upload-folder"
+        uses: "google-github-actions/upload-cloud-storage@v0"
+        with:
+          path: ${{ inputs.artifact_key }}
+          destination: ${{secrets.GOOGLE_BUCKET}}/${{ inputs.path_to_upload_artifact }}
+          gzip: true
+          parent: false
