@@ -1,0 +1,6 @@
+{
+  "name": "Organization Workflow: Build and upload artifact for FE projects",
+  "description": "Easy build and get an artifact. And cache yarn",
+  "categories": ["Web", "Build"],
+  "filePatterns": ["package.json$", "yarn.lock"]
+}

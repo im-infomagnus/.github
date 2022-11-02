@@ -1,0 +1,69 @@
+name: BuildAndUploadFEArtifact
+
+on:
+  push: # action
+    branches:
+      - main
+    tags:
+      - v*.*.*
+  pull_request: # action
+
+env:
+  PROJECT_NAME: yourProject # change to reflect your projects name
+
+jobs:
+  getNodeVersion: # step name
+    uses: yalochat/.github/.github/workflows/get_node_version.yml@main
+
+  build_and_upload:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: getNodeVersion
+
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    outputs:
+      ARTIFACT_NAME: ${{ steps.archive_artifact.outputs.ARTIFACT_NAME }}
+
+    steps:
+      - id: "set_up_node"
+        name: Setting node version to ${{ needs.getNodeVersion.outputs.node_version }} # echo of the step
+        uses: actions/setup-node@v2 # external action, setups node version on the machine
+        with: # inputs
+          node-version: "${{ needs.getNodeVersion.outputs.node_version }}" # input node version
+
+      - id: "checkout"
+        name: Checkout code
+        uses: actions/checkout@v3
+
+      - id: "yarn_cache"
+        name: Use Yarn cache
+        uses: actions/cache@v2
+        with:
+          path: ".yarn/cache"
+          key: ${{ runner.os }}-yarn-${{ needs.getNodeVersion.outputs.node_version }}-${{ hashFiles('**/yarn.lock') }}
+
+      - id: "install_dependencies"
+        name: Install dependencies
+        run: yarn
+
+      - id: "build"
+        name: Run Build
+        env:
+          SENTRY_DSN: ${{secrets.STUDIO_SENTRY_DSN}}
+        run: yarn workspace @yalo/auth build
+
+      - id: "set_output"
+        name: Set output
+        uses: actions/github-script@v6.1.0
+        with:
+          script: core.setOutput('ARTIFACT_NAME', ${{env.PROJECT_NAME}}_distribution) # change 'distribution' to your reflect your project
+
+      - id: "archive_artifact"
+        name: Archive production artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{steps.set_output.outputs.ARTIFACT_NAME}}
+          path: dist # change to the location where frome where your artifact will be uploaded
