@@ -1,0 +1,71 @@
+name: TestAndBuild # check name
+
+on: # trigger
+  push: # action
+    branches:
+      - main
+    tags:
+      - v*.*.*
+  pull_request: # action
+  
+env:
+  NPM_TOKEN: "${{secrets.NPM_TOKEN}}"
+  AWS_ACCESS_KEY_ID: "${{secrets.AWS_ACCESS_KEY_ID}}"
+  AWS_SECRET_ACCESS_KEY: "${{secrets.AWS_SECRET_ACCESS_KEY}}"
+  AWS_DEFAULT_REGION: "${{secrets.AWS_DEFAULT_REGION}}"
+  
+jobs:
+  getNodeVersion: # step name
+    uses: yalochat/.github/.github/workflows/get_node_version.yml@main
+
+  unitTest:
+    runs-on: ubuntu-latest # hardware machine
+    needs: getNodeVersion # run after step ready
+    steps: # steps to do
+      - uses: actions/checkout@v3 # external action, change to this branch
+      - name: Setting node version to ${{ needs.getNodeVersion.outputs.node_version }} # echo of the step
+        uses: actions/setup-node@v2 # external action, setups node version on the machine
+        with: # inputs
+          node-version: '${{ needs.getNodeVersion.outputs.node_version }}' # input node version
+      - name: NPM credentials
+        run: npm config set '//registry.npmjs.org/:_authToken' "${{secrets.NPM_TOKEN}}"
+      - name: Setting node version to ${{ needs.getNodeVersion.outputs.node_version }} 
+        uses: actions/setup-node@v2 
+        with:
+          node-version: '${{ needs.getNodeVersion.outputs.node_version }}'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Tests
+        run: npm run test 
+      - name: Send coverage to codecov
+        uses: codecov/codecov-action@v2
+        with: 
+          token: ${{ secrets.CODECOV_TOKEN }} # you will need the CODECOV_TOKEN that can be found on https://app.codecov.io/gh/yalochat/${REPOSITORY_NAME}
+          flags: unittests 
+
+  buildCode:
+    needs: unitTest
+    runs-on: ubuntu-latest # hardware machine
+    container: node:12 # image where is runs
+    steps:
+      - uses: actions/checkout@v3 # external action, change to this branch
+      - name: Setting node version to ${{ needs.getNodeVersion.outputs.node_version }} # echo of the step
+        uses: actions/setup-node@v2 # external action, setups node version on the machine
+        with: # inputs
+          node-version: '${{ needs.getNodeVersion.outputs.node_version }}' # input node version
+      - name: NPM credentials
+        run: npm config set '//registry.npmjs.org/:_authToken' "${{secrets.NPM_TOKEN}}"
+      - name: Setting node version to ${{ needs.getNodeVersion.outputs.node_version }} 
+        uses: actions/setup-node@v2 
+        with:
+          node-version: '${{ needs.getNodeVersion.outputs.node_version }}'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm i
+      - name: Install dependencies
+        run: |
+          npm i -g serverless
+          npm i @engyalo/enterprise --save
+          ./node_modules/@engyalo/enterprise/bin/command-line-new.js generate -s staging
+          serverless deploy -s staging
