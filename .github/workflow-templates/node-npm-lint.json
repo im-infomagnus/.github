@@ -1,0 +1,6 @@
+{
+  "name": "Organization Workflow: Node Lint",
+  "description": "lint your code!",
+  "categories": ["Node", "Lint", "validation"],
+  "filePatterns": ["package.json$", "package-lock.json$"]
+}
