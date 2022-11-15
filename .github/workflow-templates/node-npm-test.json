@@ -1,0 +1,6 @@
+{
+  "name": "Organization Workflow: Node Test",
+  "description": "Test your code!",
+  "categories": ["Node", "unit-test", "test", "validation"],
+  "filePatterns": ["package.json$", "package-lock.json$"]
+}
