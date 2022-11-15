@@ -1,0 +1,59 @@
+name: TestAndBuild
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*.*.*
+  pull_request:
+
+jobs:
+  unitTest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: "v1.18.1"
+      - name: Install dependencies
+        run: go mod download
+      - name: Run Tests
+        run: go test -count=1 -cover -race -coverprofile=coverage.out -covermode=atomic -v ./...
+      - name: Send coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unittests
+
+  buildCode:
+    needs: unitTest
+    runs-on: ubuntu-latest
+    container: golang:1.18
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+          cache: true
+      - name: Install dependencies
+        run: go mod download
+      - name: Build Code
+        run: go build -ldflags "-linkmode external -extldflags -static" -o build/admin-api -a ./app/api/main.go
+      - uses: actions/upload-artifact@v3
+        with:
+          name: service
+          path: build/
+
+  buildAndPush:
+    needs:
+      - unitTest
+      - buildCode
+    uses: yalochat/.github/.github/workflows/build-and-upload-docker-image.yml@main
+    with:
+      project_name: admin-api
+      docker_context: .
+      docker_file: ./app/api/build/Dockerfile
+    secrets:
+      username: ${{secrets.DOCKER_HUB_USERNAME}}
+      password: ${{secrets.DOCKER_HUB_PASSWORD}}
