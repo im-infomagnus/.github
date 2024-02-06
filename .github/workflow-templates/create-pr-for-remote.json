@@ -1,0 +1,6 @@
+{
+  "name": "Create a PR when the branch is updated",
+  "description": "Create a PR when the branch is updated",
+  "categories": ["Pull Request", "Developer Automation"],
+  "filePatterns": ["package.json$"]
+}
