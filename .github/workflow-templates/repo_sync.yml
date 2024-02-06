@@ -1,0 +1,23 @@
+# File: .github/workflows/repo-sync.yml
+name:
+  Sync this repo with remote repo into feature branch
+  
+on:
+  schedule:
+  - cron:  "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        persist-credentials: false
+    - name: repo-sync
+      uses: repo-sync/github-sync@v2
+      with:
+        source_repo: "https://${{ secrets.REMOTE_PAT }}@github.com/ps-resources/github-well-architected-framework"
+        source_branch: "main"
+        destination_branch: "remote_main"
+        github_token: ${{ secrets.REMOTE_PAT }}
