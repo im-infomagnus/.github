@@ -17,7 +17,7 @@ jobs:
     - name: repo-sync
       uses: repo-sync/github-sync@v2
       with:
-        source_repo: "https://${{ secrets.REMOTE_PAT }}@github.com/ps-resources/github-well-architected-framework"
+        source_repo: "https://${{ secrets.REMOTE_PAT }}@github.com/{your_remote_repo_sync_with}"
         source_branch: "main"
         destination_branch: "remote_main"
         github_token: ${{ secrets.REMOTE_PAT }}
