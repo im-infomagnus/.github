@@ -1,0 +1,6 @@
+{
+  "name": "On chron timer sync source repo/selected branch to a local repo target branch using native git CLI",
+  "description": "On chron timer sync source repo/selected branch to a local repo target branch using native git CLI",
+  "categories": ["Repository Sync", "Developer Automation"],
+  "filePatterns": ["package.json$"]
+}
