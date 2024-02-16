@@ -1,0 +1,6 @@
+{
+  "name": "On chron timer sync source repo/selected branch to a destinaotion repo target branch using custom action (including GitLFS)",
+  "description": "On chron timer sync source repo/selected branch to a destinaotion repo target branch using custom action (including GitLFS)",
+  "categories": ["Repository Sync", "Developer Automation"],
+  "filePatterns": ["package.json$"]
+}
