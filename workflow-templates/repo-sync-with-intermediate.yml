@@ -1,0 +1,20 @@
+# File: .github/workflows/repo-sync-with-intermediate.yml
+name:
+  Sync a source repo/branch to a destination repo/branch
+  
+on:
+  schedule:
+  - cron:  "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: git-sync
+      uses: im-infomagnus/git-sync@master
+      with:
+        source_repo: "https://${{ secrets.SOURCE_PAT }}@github.com/{source_org/source_repo}.git"
+        source_branch: "main"
+        destination_repo: "https://${{ secrets.DESTINATON_PAT }}@github.com/{destination_org/desination_repo}.git"
+        destination_branch: "remote_main"
