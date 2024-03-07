@@ -1,0 +1,6 @@
+{
+  "name": "On chron timer sync current forked with remote using CLI",
+  "description": "On chron timer sync current forked with remote using CLI",
+  "categories": ["Repository Sync", "Developer Automation"],
+  "filePatterns": ["package.json$"]
+}
