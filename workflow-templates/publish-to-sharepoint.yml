@@ -1,0 +1,47 @@
+name: Publish to SharePoint
+
+on:
+  schedule:
+    - cron: '0 20 * * *' # This will run the workflow every day at 12 pm PST
+  workflow_dispatch: # This allows manual triggering
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        lfs: 'true'
+
+    #- name: Setup .NET Core
+    #  uses: actions/setup-dotnet@v1
+    #  with:
+    #    dotnet-version: 5.0
+
+    - name: Install SharePointPnPPowerShellOnline
+      run: | 
+        # Install-Module SharePointPnPPowerShellOnline -Force -Confirm:$false 
+        Install-Module -Name PnP.PowerShell -Force -Confirm:$false 
+      shell: pwsh
+
+    - name: Publish to SharePoint
+      run: |
+        $username = "${{ secrets.SHAREPOINT_USERNAME }}"
+        $password = "${{ secrets.SHAREPOINT_PASSWORD }}"
+        $pfxPath = "data/gh-sp-integration.pfx"
+        $tenantUrl = "infomagnus365.onmicrosoft.com"
+        $siteUrl = "${{ vars.SHAREPOINT_SITE_URL }}"
+        $rootFolder = "${{ vars.SHAREPOINT_ROOT_FOLDER }}"
+
+        Connect-PnPOnline -ClientId $username -CertificatePath $pfxPath -CertificatePassword (ConvertTo-SecureString -AsPlainText $password -Force) -Url $siteUrl -Tenant $tenantUrl
+
+        Get-ChildItem -Path . -Recurse -File | ForEach-Object {
+            $relativePath = $_.FullName.Substring((Resolve-Path .).Path.Length + 1)
+            $folderPath = [System.IO.Path]::GetDirectoryName($relativePath)
+            $folder = Resolve-PnPFolder -SiteRelativePath "Shared Documents/$rootFolder/$folderPath"
+            Add-PnPFile -Path $_.FullName -Folder $folder.ServerRelativeUrl
+            Write-Host "Uploaded $($_.FullName) to SharePoint"
+        }
+      shell: pwsh

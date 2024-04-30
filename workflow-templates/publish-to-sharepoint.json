@@ -1,0 +1,6 @@
+{
+  "name": "Sync GitHub repo with SharePoint/Teams folder recursively",
+  "description": "Sync GitHub repo with SharePoint/Teams folder recursively",
+  "categories": ["Repository Sync", "Developer Automation", "Sharepoint", "Microsoft 365"],
+  "filePatterns": ["package.json$"]
+}
