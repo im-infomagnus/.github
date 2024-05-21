@@ -1,0 +1,61 @@
+name: Sync Issues
+
+on:
+  # schedule:
+  #  - cron: '0 0 * * *'  # Run every day at 12:00 AM UTC
+  workflow_dispatch:
+
+jobs:
+  syncIssues:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Sync issues
+      uses: actions/github-script@v7
+      with:
+        retries: 3
+        retry-exempt-status-codes: 400,401
+        script: |
+          const sourceRepo = '{{ source-org }}/{{ source-repo }}';  
+          const targetRepo = '{{ target-org }}/{{ target-repo }}';  
+
+          // Fetch issues from the source repo
+          const { data: sourceIssues } = await github.rest.issues.listForRepo({
+            owner: sourceRepo.split('/')[0],
+            repo: sourceRepo.split('/')[1],
+            state: 'open'
+          });
+
+          // Fetch issues from the target repo
+          const { data: targetIssues } = await github.rest.issues.listForRepo({
+            owner: targetRepo.split('/')[0],
+            repo: targetRepo.split('/')[1],
+            state: 'open'
+          });
+
+          // Create or update issues in the target repo
+          for (const sourceIssue of sourceIssues) {
+            const targetIssue = targetIssues.find(issue => issue.title === sourceIssue.title);
+
+            if (targetIssue) {
+              // Update the issue
+              await github.rest.issues.update({
+                owner: targetRepo.split('/')[0],
+                repo: targetRepo.split('/')[1],
+                issue_number: targetIssue.number,
+                title: sourceIssue.title,
+                body: sourceIssue.body,
+                labels: sourceIssue.labels.map(label => label.name)
+              });
+            } else {
+              // Create the issue
+              await github.rest.issues.create({
+                owner: targetRepo.split('/')[0],
+                repo: targetRepo.split('/')[1],
+                title: sourceIssue.title,
+                body: sourceIssue.body,
+                labels: sourceIssue.labels.map(label => label.name)
+              });
+            }
+          }
+        github-token: ${{ secrets.GH_SYNC_PAT }}
